@@ -1,0 +1,5 @@
+# 2-3 操作できるデータアプリの構築 の依存ライブラリ
+# Streamlit Community Cloud は、このファイルを見て環境を作る。
+# 手元では Claude Code に「このアプリを動かすのに足りないものを入れて」と頼めばよい。
+streamlit>=1.40
+pandas>=2.0
