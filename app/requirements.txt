@@ -3,3 +3,4 @@
 # 手元では Claude Code に「このアプリを動かすのに足りないものを入れて」と頼めばよい。
 streamlit>=1.40
 pandas>=2.0
+altair>=5.0
