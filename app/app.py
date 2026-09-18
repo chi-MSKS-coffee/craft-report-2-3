@@ -36,6 +36,9 @@ def ensure_dataset(data_dir: str = DATA_DIR) -> None:
         return
     with zipfile.ZipFile(zip_path) as z:
         for name in z.namelist():
+            if not (base / name).exists():
+                z.extract(name, base)
+
 
 # ---- 分析ロジック（Streamlit に依存しない純粋な関数・Q1 で作る） ----------
 
