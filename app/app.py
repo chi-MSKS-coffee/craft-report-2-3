@@ -36,9 +36,6 @@ def ensure_dataset(data_dir: str = DATA_DIR) -> None:
         return
     with zipfile.ZipFile(zip_path) as z:
         for name in z.namelist():
-            if not (base / name).exists():
-                z.extract(name, base)
-
 
 # ---- 分析ロジック（Streamlit に依存しない純粋な関数・Q1 で作る） ----------
 
@@ -80,7 +77,7 @@ def filter_students(df, kouza, nendai, gakureki):
 
     
 def kpis(df) -> dict:
-    受講生数 = len(df) #何件文かを表示
+    受講生数 = len(df) 
     if 受講生数 == 0:
         # 人数0のときは0除算になるので、合格率などは計算せず「－」を返す。
         return {"受講生数": 0, "合格率": "－", "平均点": "－", "平均クリック数": "－"}
@@ -124,14 +121,15 @@ def main():
     学歴リスト = list(get_data()["学歴"].unique())
     gakureki = st.sidebar.multiselect("学歴",学歴リスト)
 
-    df = filter_students(get_data(),kouza,nendai,gakureki)
-    if df.empty:
+    filter_df = filter_students(get_data(),kouza,nendai,gakureki)
+    if filter_df.empty:
         st.warning("該当する受講生がいません。絞り込み条件を変えてください。")
-        return
+        return # 処理の打ち切り
 
    # TODO(Q3): 主要指標（受講生数・合格率・平均点…）を st.metric で横に並べる
-    結果 = kpis(df)
+    結果 = kpis(filter_df)
     表示 = dict(結果)
+    
     表示["受講生数"] = f"{表示["受講生数"]:,}"
     for key in ["合格率", "平均点", "平均クリック数"]:
         if isinstance(表示[key], (int, float)):
@@ -152,8 +150,9 @@ def main():
 
     with tab1:
         st.header("講座別合格率")
-        結果 = pass_rate_by(df,"講座名").reset_index()
+        結果 = pass_rate_by(filter_df,"講座名").reset_index()
         結果.columns = ["講座名","合格率"]
+
         if kouza == "すべて":
             top = 結果.sort_values("合格率",ascending=False).iloc[0]
             st.info(f"最も合格率が高いのは「{top['講座名']}」({top['合格率']:.1f}%)")
@@ -164,14 +163,14 @@ def main():
             st.altair_chart(chart,use_container_width=True,height=300)
         else:
             chart = alt.Chart(結果).mark_bar(size=30).encode(
-                         y=alt.Y("講座名:N",sort="-x",axis=alt.Axis(labelLimit=200)),
-                         x=alt.X("合格率:Q"),
-                         color=alt.value("#0068c9"))
+                 y=alt.Y("講座名:N",sort="-x",axis=alt.Axis(labelLimit=200)),
+                 x=alt.X("合格率:Q"),
+                 color=alt.value("#0068c9"))
             st.altair_chart(chart,use_container_width=True,height=150)
 
     with tab2:
         st.header("学歴別合格率")
-        結果 = pass_rate_by(df,"学歴").reset_index()
+        結果 = pass_rate_by(filter_df,"学歴").reset_index()
         結果.columns = ["学歴","合格率"]
         chart = alt.Chart(結果).mark_bar(size=30).encode(
              y=alt.Y("学歴:N",sort="-x"),
@@ -180,7 +179,7 @@ def main():
         st.altair_chart(chart,use_container_width=True,height=300)
     with tab3:
         st.header("年代別合格率")
-        結果 = pass_rate_by(df,"年代").reset_index()
+        結果 = pass_rate_by(filter_df,"年代").reset_index()
         結果.columns = ["年代","合格率"]
         chart = alt.Chart(結果).mark_bar(size=30).encode(
              y=alt.Y("年代:N",sort="-x"),
@@ -190,19 +189,18 @@ def main():
 
     # TODO(Q5): 最終結果の内訳グラフと、学習量と合否（平均クリック）のグラフを描く
     st.header("最終結果")
-    結果 = df["最終結果"].value_counts().reset_index()
+    結果 = filter_df["最終結果"].value_counts().reset_index()
     結果.columns = ["最終結果","人数"]
     結果["区分"] = 結果["最終結果"].apply(lambda x: "合格" if x in PASS else "不合格")
 
     chart = alt.Chart(結果).mark_bar(size=30).encode(
         y=alt.Y("最終結果:N", sort="-x"),
         x=alt.X("人数:Q"),
-        color=alt.Color("区分:N", scale=alt.Scale(domain=["合格","不合格"], range=["#0068c9","red"]), legend=None)
-    )
+        color=alt.Color("区分:N", scale=alt.Scale(domain=["合格","不合格"], range=["#0068c9","red"]), legend=None))
     st.altair_chart(chart, use_container_width=True,height=250)
 
     st.header("平均総クリック数と合否")
-    結果 = df.groupby("合格")["総クリック数"].mean().reset_index()
+    結果 = filter_df.groupby("合格")["総クリック数"].mean().reset_index()
     結果["合格"] = 結果["合格"].map({True: "合格", False: "不合格"})
     結果.columns = ["結果","平均総クリック数"]
 
@@ -219,13 +217,11 @@ def main():
 
     # TODO(Q6): 絞り込み結果の一覧と、CSVダウンロードボタン（utf-8-sig）を付ける
     st.header("受講生一覧")
-    st.dataframe(df)
+    st.dataframe(filter_df)
  
-    csv = df.to_csv(index=False).encode("utf-8-sig")
+    csv = filter_df.to_csv(index=False).encode("utf-8-sig")
     st.download_button("CSVダウンロード",data=csv,file_name="受講生一覧.csv",mime="text/csv") 
   
-   
-
-
 if __name__ == "__main__":
     main()
+# このファイルが直接実行されたときだけmain()を呼ぶ、importされたときは呼ばない
